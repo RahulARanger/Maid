@@ -1,11 +1,11 @@
 from json import loads, dumps
 from urllib.request import urlopen
+from dotenv import load_dotenv
 from lxml import etree
 from lxml.etree import _Element
 from typing import Optional, Dict, TypedDict
 from loguru import logger
 from pathlib import Path
-from dotenv import load_dotenv
 from maid.send_mail import send_email
 from maid.utils import give_first_or_ntg, ARTIFACTS_FOLDER, find_difference
 from datetime import datetime
