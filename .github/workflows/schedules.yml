@@ -34,6 +34,8 @@ jobs:
       - name: Set up venv
         run: |
           python -m venv venv
+          apt-get install python-dev libxml2 libxml2-dev libxslt-dev
+          sudo apt-get install python3-lxml
 
       - name: Activate venv
         run: |
@@ -54,10 +56,6 @@ jobs:
           echo "EMAIL_APP_PASSWORD=${{ secrets.EMAIL_APP_PASSWORD }}" >> .env
           echo "MY_EMAIL=${{ secrets.MY_EMAIL }}" >> .env
           echo "FLOWS=0" >> .env
-
-      - name: Activate venv
-        run: |
-          source ./venv/bin/activate
 
       - name: Run the Jobs
         working-directory: .
