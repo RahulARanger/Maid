@@ -10,6 +10,7 @@ from maid.send_mail import send_email
 from maid.utils import give_first_or_ntg, ARTIFACTS_FOLDER, find_difference
 from datetime import datetime
 from html import escape
+
 load_dotenv()
 FILE_NAME = "student_housing_aarhus_prev_results.json"
 
@@ -92,17 +93,19 @@ def open_html_template_string() -> str:
 </html>
 """
 
+
 def _row_html(key: str, item: dict, cls: str) -> str:
     return (
         f'<tr class="{cls}">'
-        f"<td>{escape(item.get('Area','') or '')}</td>"
-        f"<td>{escape(item.get('Price','') or '')}</td>"
-        f"<td>{escape(item.get('Address','') or '')}</td>"
-        f"<td>{escape(item.get('Date','') or '')}</td>"
-        f"<td>{escape(item.get('Type','') or '')}</td>"
+        f"<td>{escape(item.get('Area', '') or '')}</td>"
+        f"<td>{escape(item.get('Price', '') or '')}</td>"
+        f"<td>{escape(item.get('Address', '') or '')}</td>"
+        f"<td>{escape(item.get('Date', '') or '')}</td>"
+        f"<td>{escape(item.get('Type', '') or '')}</td>"
         f"<td>{escape(key)}</td>"
         "</tr>"
     )
+
 
 def parse_things():
     with urlopen("https://studenthousingaarhus.com/all-available-housing") as request:
@@ -214,22 +217,24 @@ def check_whats_up(send=True):
     previous_choices = prev.get('Choices', {})
     current_choices = current.get('Choices', {})
     no_change, removed, added, rest = find_difference(previous_choices, current_choices)
-    html = render_email_html(added, removed, previous_choices, current_choices, rest, current_available=current.get('Available', 0))
 
     if no_change:
         logger.info("There are no changes, so not sending any update.")
         return None
-    else:
-        sub = 'There are some changes in the Student Housing Portal'
-        if added:
-            sub = "There are new housing options in the Student Housing Portal!"
-        elif removed:
-            sub = "Some options were removed from the Student Housing Portal"
+    html = render_email_html(
+        added, removed, previous_choices,
+        current_choices, rest, current_available=current.get('Available', 0)
+    )
+    sub = 'There are some changes in the Student Housing Portal'
+    if added:
+        sub = "There are new housing options in the Student Housing Portal!"
+    elif removed:
+        sub = "Some options were removed from the Student Housing Portal"
 
-        if send:
-            send_email(sub, html)
-        return diff_file.write_text(dumps(current))
+    if send:
+        send_email(sub, html)
+    return diff_file.write_text(dumps(current))
+
 
 if __name__ == '__main__':
     check_whats_up(False)
-
