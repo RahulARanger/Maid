@@ -58,7 +58,7 @@ jobs:
 
       - name: Run the Jobs
         working-directory: .
-        run: python daily_jobs.py
+        run: poetry run python daily_jobs.py
 
       - name: Upload artifacts back to S3
         run: |
