@@ -204,7 +204,7 @@ def render_email_html(
     return html
 
 
-def check_whats_up():
+def check_whats_up(send=True):
     diff_file = Path.cwd() / ARTIFACTS_FOLDER / FILE_NAME
     prev = {}
     if diff_file.exists():
@@ -214,11 +214,11 @@ def check_whats_up():
     previous_choices = prev.get('Choices', {})
     current_choices = current.get('Choices', {})
     no_change, removed, added, rest = find_difference(previous_choices, current_choices)
-
     html = render_email_html(added, removed, previous_choices, current_choices, rest, current_available=current.get('Available', 0))
 
     if no_change:
         logger.info("There are no changes, so not sending any update.")
+        return None
     else:
         sub = 'There are some changes in the Student Housing Portal'
         if added:
@@ -226,9 +226,10 @@ def check_whats_up():
         elif removed:
             sub = "Some options were removed from the Student Housing Portal"
 
-        send_email(sub, html)
-        diff_file.write_text(dumps(current))
+        if send:
+            send_email(sub, html)
+        return diff_file.write_text(dumps(current))
 
 if __name__ == '__main__':
-    check_whats_up()
+    check_whats_up(False)
 
