@@ -6,7 +6,7 @@ authors = [
     {name = "RahulARanger",email = "saihanumarahul66@gmail.com"}
 ]
 license = {text = "MIT"}
-readme = "README.md"
+package-mode = false
 requires-python = ">=3.13,<4.0"
 dependencies = [
     "helium (>=5.1.1,<6.0.0)",
