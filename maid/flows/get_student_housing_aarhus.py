@@ -7,7 +7,7 @@ from loguru import logger
 from pathlib import Path
 from dotenv import load_dotenv
 from maid.send_mail import send_email
-from maid.utils import give_first_or_ntg, ARTIFACTS_FOLDER
+from maid.utils import give_first_or_ntg, ARTIFACTS_FOLDER, find_difference
 from datetime import datetime
 from html import escape
 load_dotenv()
@@ -26,99 +26,6 @@ class Response(TypedDict):
     Available: int
     Choices: Dict[str, Choice]
 
-
-
-def parse_things():
-    with urlopen("https://studenthousingaarhus.com/all-available-housing") as request:
-        html_content = request.read().decode('utf-8')
-        parser = etree.HTMLParser()
-        tree = etree.fromstring(html_content, parser)
-
-        available: list[_Element] = tree.xpath("//div[@class='avail_apt_small_card']")
-        response: Response = {
-            "Available": len(available),
-            "Choices": {}
-        }
-        for choice in available:
-            price = give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-rent']/text()"))
-            address = give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-area']/text()"))
-            response["Choices"][f"{address}{price}"] = {
-                "Price": price,
-                "Address": give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-address']/text()")),
-                "Area": address,
-                "Date": give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-date']/text()")),
-                "Type": give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-type']/text()"))
-            }
-
-    return response
-
-
-def _row_html(key: str, item: dict, cls: str) -> str:
-    return (
-        f'<tr class="{cls}">'
-        f"<td>{escape(item.get('Area','') or '')}</td>"
-        f"<td>{escape(item.get('Price','') or '')}</td>"
-        f"<td>{escape(item.get('Address','') or '')}</td>"
-        f"<td>{escape(item.get('Date','') or '')}</td>"
-        f"<td>{escape(item.get('Type','') or '')}</td>"
-        f"<td>{escape(key)}</td>"
-        "</tr>"
-    )
-
-def render_email_html(previous_choices: dict, current_choices: dict, current_available: int) -> str:
-    prev_keys = set(previous_choices.keys())
-    curr_keys = set(current_choices.keys())
-
-    added_keys = sorted(curr_keys - prev_keys)
-    removed_keys = sorted(prev_keys - curr_keys)
-
-    added_rows = "\n".join(
-        _row_html(k, current_choices[k], "row-add") for k in added_keys
-    )
-    removed_rows = "\n".join(
-        _row_html(k, previous_choices[k], "row-rm") for k in removed_keys
-    )
-
-    added_section = (
-        f"""
-        <div class="card">
-          <h2>New listings</h2>
-          <table role="table" aria-label="New listings">
-            <thead><tr><th>Area</th><th>Price</th><th>Address</th><th>Date</th><th>Type</th><th>Key</th></tr></thead>
-            <tbody>
-              {added_rows or '<tr><td colspan="6" class="muted">No new listings.</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-        """
-    )
-
-    removed_section = (
-        f"""
-        <div class="card">
-          <h2>Removed listings</h2>
-          <table role="table" aria-label="Removed listings">
-            <thead><tr><th>Area</th><th>Price</th><th>Address</th><th>Date</th><th>Type</th><th>Key</th></tr></thead>
-            <tbody>
-              {removed_rows or '<tr><td colspan="6" class="muted">No removals.</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-        """
-    )
-
-    template = open_html_template_string()
-
-    html = (
-        template
-        .replace("<!-- {snapshot_date} -->", escape(datetime.now().strftime("%Y-%m-%d %H:%M")))
-        .replace("<!-- {current_available} -->", str(current_available))
-        .replace("<!-- {added_count} -->", str(len(added_keys)))
-        .replace("<!-- {removed_count} -->", str(len(removed_keys)))
-        .replace("<!-- {added_section} -->", added_section)
-        .replace("<!-- {removed_section} -->", removed_section)
-    )
-    return html
 
 def open_html_template_string() -> str:
     return """<!doctype html>
@@ -172,6 +79,9 @@ def open_html_template_string() -> str:
 
       <!-- REMOVED LISTINGS -->
       <!-- {removed_section} -->
+      
+      <!-- REST OF THE LISTINGS -->
+      <!-- {rest_of_section} -->
 
       <div class="footer">
         You’re getting this because you track changes on studenthousingaarhus.com.  
@@ -181,6 +91,117 @@ def open_html_template_string() -> str:
   </body>
 </html>
 """
+
+def _row_html(key: str, item: dict, cls: str) -> str:
+    return (
+        f'<tr class="{cls}">'
+        f"<td>{escape(item.get('Area','') or '')}</td>"
+        f"<td>{escape(item.get('Price','') or '')}</td>"
+        f"<td>{escape(item.get('Address','') or '')}</td>"
+        f"<td>{escape(item.get('Date','') or '')}</td>"
+        f"<td>{escape(item.get('Type','') or '')}</td>"
+        f"<td>{escape(key)}</td>"
+        "</tr>"
+    )
+
+def parse_things():
+    with urlopen("https://studenthousingaarhus.com/all-available-housing") as request:
+        html_content = request.read().decode('utf-8')
+        parser = etree.HTMLParser()
+        tree = etree.fromstring(html_content, parser)
+
+        available: list[_Element] = tree.xpath("//div[@class='avail_apt_small_card']")
+        response: Response = {
+            "Available": len(available),
+            "Choices": {}
+        }
+        for choice in available:
+            price = give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-rent']/text()"))
+            address = give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-area']/text()"))
+            response["Choices"][f"{address}{price}"] = {
+                "Price": price,
+                "Address": give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-address']/text()")),
+                "Area": address,
+                "Date": give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-date']/text()")),
+                "Type": give_first_or_ntg(choice.xpath(".//div[@class='avail-apt-card-type']/text()"))
+            }
+
+    return response
+
+
+def render_email_html(
+        added_keys: set[str],
+        removed_keys: set[str],
+        previous_choices: dict,
+        current_choices: dict,
+        rest: set[str],
+        current_available: int
+) -> str:
+    added_rows = "\n".join(
+        _row_html(k, current_choices[k], "row-add") for k in added_keys
+    )
+    removed_rows = "\n".join(
+        _row_html(k, previous_choices[k], "row-rm") for k in removed_keys
+    )
+    rest_of_rows = "\n".join(
+        _row_html(k, current_choices[k], "row-rm") for k in rest
+    )
+
+    added_section = (
+        f"""
+        <div class="card">
+          <h2>New listings</h2>
+          <table role="table" aria-label="New listings">
+            <thead><tr><th>Area</th><th>Price</th><th>Address</th><th>Date</th><th>Type</th><th>Key</th></tr></thead>
+            <tbody>
+              {added_rows or '<tr><td colspan="6" class="muted">No new listings.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        """
+    )
+
+    removed_section = (
+        f"""
+        <div class="card">
+          <h2>Removed listings</h2>
+          <table role="table" aria-label="Removed listings">
+            <thead><tr><th>Area</th><th>Price</th><th>Address</th><th>Date</th><th>Type</th><th>Key</th></tr></thead>
+            <tbody>
+              {removed_rows or '<tr><td colspan="6" class="muted">No removals.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        """
+    )
+
+    rest_of_section = (
+        f"""
+            <div class="card">
+              <h2>Rest of the listings</h2>
+              <table role="table" aria-label="Rest of the listings">
+                <thead><tr><th>Area</th><th>Price</th><th>Address</th><th>Date</th><th>Type</th><th>Key</th></tr></thead>
+                <tbody>
+                  {rest_of_rows or '<tr><td colspan="6" class="muted">No other listings.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+            """
+    )
+
+    template = open_html_template_string()
+
+    html = (
+        template
+        .replace("<!-- {snapshot_date} -->", escape(datetime.now().strftime("%Y-%m-%d %H:%M")))
+        .replace("<!-- {current_available} -->", str(current_available))
+        .replace("<!-- {added_count} -->", str(len(added_keys)))
+        .replace("<!-- {removed_count} -->", str(len(removed_keys)))
+        .replace("<!-- {added_section} -->", added_section)
+        .replace("<!-- {removed_section} -->", removed_section)
+        .replace("<!-- {rest_of_section} -->", rest_of_section)
+    )
+    return html
 
 
 def check_whats_up():
@@ -192,14 +213,9 @@ def check_whats_up():
     current = parse_things()
     previous_choices = prev.get('Choices', {})
     current_choices = current.get('Choices', {})
+    no_change, removed, added, rest = find_difference(previous_choices, current_choices)
 
-    html = render_email_html(previous_choices, current_choices, current_available=current.get('Available', 0))
-
-    prev_keys = set(previous_choices.keys())
-    curr_keys = set(current_choices.keys())
-    added = curr_keys - prev_keys
-    removed = prev_keys - curr_keys
-    no_change = (not added and not removed)
+    html = render_email_html(added, removed, previous_choices, current_choices, rest, current_available=current.get('Available', 0))
 
     if no_change:
         logger.info("There are no changes, so not sending any update.")

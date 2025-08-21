@@ -12,4 +12,4 @@ def find_difference(previous, current):
 
     previous_options = set(previous.keys())
     current_options = set(current.keys())
-    return no_change, previous_options.difference(current_options), current_options.difference(previous_options), current_options.intersection(previous_options)
+    return no_change, previous_options - current_options, current_options - previous_options, current_options.intersection(previous_options)
