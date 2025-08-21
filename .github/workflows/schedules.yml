@@ -32,7 +32,6 @@ jobs:
           python-version: "3.13"
 
       - name: Set up venv
-        # https://stackoverflow.com/a/4598340/12318454
         run: |
           python -m venv venv
 
