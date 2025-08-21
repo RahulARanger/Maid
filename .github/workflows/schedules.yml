@@ -45,7 +45,7 @@ jobs:
           pip install poetry nox
 
       - name: Install dependencies
-        run: poetry install --all-extras
+        run: poetry install
 
       - name: prep env variables
         run: |
