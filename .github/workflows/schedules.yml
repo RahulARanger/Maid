@@ -55,6 +55,10 @@ jobs:
           echo "MY_EMAIL=${{ secrets.MY_EMAIL }}" >> .env
           echo "FLOWS=0" >> .env
 
+      - name: Activate venv
+        run: |
+          source ./venv/bin/activate
+
       - name: Run the Jobs
         working-directory: .
         run: python daily_jobs.py
