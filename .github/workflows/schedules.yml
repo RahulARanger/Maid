@@ -3,7 +3,7 @@ name: ScheduledWork
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 4 * * *"   # ~6 AM Aarhus (summer), 5 AM (winter)
+    - cron: "0 10 * * *"   # ~12 PM Aarhus (summer), 11 AM (winter)
     - cron: "0 19 * * *"  # ~9 PM Aarhus (summer), 8 PM (winter)
 
 jobs:
