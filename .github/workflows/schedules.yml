@@ -53,7 +53,7 @@ jobs:
           echo "UPDATE_TO=${{ secrets.UPDATE_TO }}" >> .env
           echo "EMAIL_APP_PASSWORD=${{ secrets.EMAIL_APP_PASSWORD }}" >> .env
           echo "MY_EMAIL=${{ secrets.MY_EMAIL }}" >> .env
-          echo "FLOWS=0" >> .env
+#          echo "FLOWS=0" >> .env
 
       - name: Run the Jobs
         working-directory: .
